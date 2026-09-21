@@ -1,0 +1,7 @@
+# Render Blueprint: one free web service built from the Dockerfile.
+services:
+  - type: web
+    name: relay-resumable-conversation
+    runtime: docker
+    plan: free
+    healthCheckPath: /

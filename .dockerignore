@@ -1,0 +1,6 @@
+.git
+.claude
+MY-NOTES*.md
+web/node_modules
+web/dist
+server/*.db

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -17,7 +18,13 @@ import (
 )
 
 func main() {
-	addr := flag.String("addr", ":8080", "address to listen on")
+	// Hosting platforms hand the port over in $PORT.
+	defaultAddr := ":8080"
+	if port := os.Getenv("PORT"); port != "" {
+		defaultAddr = ":" + port
+	}
+	addr := flag.String("addr", defaultAddr, "address to listen on")
+	static := flag.String("static", "", "directory with the built web app to serve at / (optional)")
 	dbPath := flag.String("db", "chat.db", "SQLite file holding the durable event history")
 	interval := flag.Duration("chunk-interval", 120*time.Millisecond, "pause between generated chunks")
 	flag.Parse()
@@ -45,7 +52,7 @@ func main() {
 	run := runner.New(st, h, *interval)
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           api.New(ctx, st, h, run),
+		Handler:           handler(api.New(ctx, st, h, run), *static),
 		ReadHeaderTimeout: 5 * time.Second,
 		// No WriteTimeout: SSE responses are intentionally long-lived.
 	}
@@ -66,4 +73,17 @@ func main() {
 		log.Printf("shutdown: %v", err)
 	}
 	run.Wait()
+}
+
+// handler serves the API under /api and, when a build directory is given, the
+// web app at every other path. Serving both from one origin is what lets a
+// single small service host the whole demo.
+func handler(apiHandler http.Handler, staticDir string) http.Handler {
+	if staticDir == "" {
+		return apiHandler
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/api/", apiHandler)
+	mux.Handle("/", http.FileServer(http.Dir(staticDir)))
+	return mux
 }
