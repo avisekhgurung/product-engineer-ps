@@ -51,6 +51,8 @@ export interface RunView {
   lastDisconnectedAt: number | null;
   /** True while the user has deliberately cut the connection (demo button). */
   cutByUser: boolean;
+  /** Cursor at every point the connection was lost, oldest first. */
+  disconnects: number[];
 }
 
 const initialView: RunView = {
@@ -71,6 +73,7 @@ const initialView: RunView = {
   reconnectCursor: null,
   lastDisconnectedAt: null,
   cutByUser: false,
+  disconnects: [],
 };
 
 /** Reconnect policy: exponential backoff with jitter, and a hard stop. */
@@ -93,6 +96,11 @@ function backoff(attempt: number): number {
 
 function isTerminal(status: RunStatus | "idle"): boolean {
   return status === "completed" || status === "failed" || status === "interrupted";
+}
+
+/** Adds a loss point unless the last one is the same position. */
+function withDisconnect(points: number[], at: number): number[] {
+  return points[points.length - 1] === at ? points : [...points, at];
 }
 
 /** Frames that carry no sequence number and must not move the cursor. */
@@ -171,6 +179,8 @@ export function useRun(conversationId: string) {
           ...current,
           connection: "disconnected",
           lastDisconnectedAt: brokeAt,
+          disconnects: withDisconnect(current.disconnects, brokeAt),
+          reconnectCursor: null,
         }));
         return;
       }
@@ -179,6 +189,8 @@ export function useRun(conversationId: string) {
         notice: reason,
         noticeKind: "warning",
         lastDisconnectedAt: brokeAt,
+        disconnects: withDisconnect(current.disconnects, brokeAt),
+          reconnectCursor: null,
       }));
       scheduleRetry();
     },
@@ -339,6 +351,7 @@ export function useRun(conversationId: string) {
           cursor: 0,
           text: "",
           log: [],
+          disconnects: [],
           duplicatesSuppressed: 0,
           notice:
             "Our cursor was ahead of the server's history — replaying this reply from the start.",
@@ -398,6 +411,8 @@ export function useRun(conversationId: string) {
       ...current,
       connection: "disconnected",
       lastDisconnectedAt: cursor.current,
+      disconnects: withDisconnect(current.disconnects, cursor.current),
+      reconnectCursor: null,
       cutByUser: true,
       notice: `Disconnected at event ${cursor.current} — the server is still generating. Press Reconnect to continue.`,
       noticeKind: "warning",

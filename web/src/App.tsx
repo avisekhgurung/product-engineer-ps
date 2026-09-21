@@ -5,13 +5,12 @@
 
 import { useMemo, useState } from "react";
 import "./App.css";
-import { AppHeader, CapabilityPills } from "./components/AppHeader";
+import { AppHeader } from "./components/AppHeader";
 import { Composer } from "./components/Composer";
 import { Conversation } from "./components/Conversation";
-import { Architecture, ConnectionRecovery, StreamIntegrity } from "./components/Diagnostics";
+import { ConnectionRecovery, RunInfo, StreamIntegrity } from "./components/Diagnostics";
 import { EventStream } from "./components/EventStream";
 import { NowBanner, ProofStrip, StepGuide } from "./components/Guide";
-import { StatusBar } from "./components/StatusBar";
 import { streamMetrics } from "./metrics";
 import { useRun } from "./useRun";
 
@@ -63,22 +62,19 @@ export default function App() {
         <summary>
           <span className="hood-title">Under the hood</span>
           <span className="hood-hint">
-            Event log, integrity checks and architecture &mdash; for engineers
+            Run details, integrity checks and the event log &mdash; for engineers
           </span>
         </summary>
 
         <div className="hood-body">
-          <CapabilityPills />
-          <StatusBar view={view} metrics={metrics} />
-
           <div className="hood-grid">
             <div className="column">
+              <RunInfo view={view} />
               <StreamIntegrity metrics={metrics} />
               <ConnectionRecovery view={view} />
-              <Architecture />
             </div>
             <div className="column">
-              <EventStream log={view.log} />
+              <EventStream log={view.log} disconnects={view.disconnects} />
             </div>
           </div>
         </div>

@@ -66,22 +66,6 @@
   font-size: 15px;
 }
 
-.capabilities {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 0 0 12px;
-}
-
-.capabilities li {
-  padding: 4px 12px;
-  font-size: 13px;
-  border-radius: 999px;
-  border: 1px solid var(--border-strong);
-  background: var(--panel);
-  color: var(--text-2);
-}
-
 .demo-chip {
   display: inline-block;
   padding: 7px 16px;
@@ -90,87 +74,6 @@
   border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
   background: var(--accent-soft);
   color: var(--accent-hover);
-}
-
-/* ---------- status bar ---------- */
-
-.status-bar {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.status-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--panel);
-  min-width: 0;
-}
-
-.status-icon {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 32px;
-  height: 32px;
-  font-size: 18px;
-  border-radius: 50%;
-  color: var(--muted);
-  background: var(--bg);
-}
-
-.status-label {
-  font-size: 12px;
-  color: var(--text-2);
-}
-
-.status-value {
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
-
-.status-value.mono {
-  letter-spacing: 0.02em;
-}
-
-.tone-good {
-  border-color: color-mix(in srgb, var(--good) 40%, var(--border));
-}
-.tone-good .status-icon,
-.tone-good .status-value {
-  color: var(--good);
-}
-.tone-good .status-icon {
-  background: var(--good-soft);
-}
-
-.tone-warn {
-  border-color: color-mix(in srgb, var(--warn) 40%, var(--border));
-}
-.tone-warn .status-icon,
-.tone-warn .status-value {
-  color: var(--warn);
-}
-.tone-warn .status-icon {
-  background: var(--warn-soft);
-}
-
-.tone-bad {
-  border-color: color-mix(in srgb, var(--bad) 45%, var(--border));
-}
-.tone-bad .status-icon,
-.tone-bad .status-value {
-  color: var(--bad);
-}
-.tone-bad .status-icon {
-  background: var(--bad-soft);
 }
 
 /* ---------- columns ---------- */
@@ -475,6 +378,25 @@
   color: var(--muted);
 }
 
+/* A lost connection is a divider, not a numbered event. */
+.row.lost {
+  display: block;
+  padding: 6px 10px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--warn);
+  background: var(--warn-soft);
+  border-top: 1px dashed color-mix(in srgb, var(--warn) 55%, transparent);
+  border-bottom: 1px dashed color-mix(in srgb, var(--warn) 55%, transparent);
+}
+
+.hood .card-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-2);
+}
+
 /* Narrow card: drop the time column first, then tighten the rest, so the text
    column always keeps room to be read. */
 @container (max-width: 520px) {
@@ -514,25 +436,6 @@
   color: var(--muted);
 }
 
-.dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--muted);
-}
-.dot.good {
-  background: var(--good);
-}
-.dot.bad {
-  background: var(--bad);
-}
-
-.kv-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-}
-
 .kv-row {
   display: flex;
   justify-content: space-between;
@@ -553,42 +456,6 @@
 }
 .kv-value.bad {
   color: var(--bad);
-}
-
-.pipeline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.pipeline li {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.stage {
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-strong);
-  background: var(--bg-raised);
-  text-align: center;
-}
-
-.stage-name {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.stage-detail {
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.arrow {
-  color: var(--muted);
 }
 
 /* ---------- footer ---------- */
@@ -842,10 +709,6 @@
 .hood-body {
   padding: 4px 16px 16px;
   border-top: 1px solid var(--border);
-}
-
-.hood-body > .capabilities {
-  margin-top: 14px;
 }
 
 .hood-grid {

@@ -1,12 +1,6 @@
 // Product header: identity, one plain sentence about what this page shows, and
 // an honest label saying it is a demo.
 
-const capabilities = [
-  { label: "Durable Events", hint: "every event is stored before it is sent" },
-  { label: "Cursor Resume", hint: "reconnects ask for everything after a sequence number" },
-  { label: "Gap-Free Delivery", hint: "replay and live delivery are deduplicated" },
-];
-
 export function AppHeader() {
   return (
     <header className="app-header">
@@ -33,17 +27,5 @@ export function AppHeader() {
 
       <span className="demo-chip">Engineering Demo</span>
     </header>
-  );
-}
-
-export function CapabilityPills() {
-  return (
-    <ul className="capabilities">
-      {capabilities.map((capability) => (
-        <li key={capability.label} title={capability.hint}>
-          {capability.label}
-        </li>
-      ))}
-    </ul>
   );
 }

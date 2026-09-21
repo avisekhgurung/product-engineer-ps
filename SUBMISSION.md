@@ -142,6 +142,11 @@ arrived (`web/src/metrics.ts`). Nothing is hardcoded and the server sends no ext
 - **Missing / Duplicates / Ordering:** missing is any sequence at or below the cursor that the
   log does not hold; duplicates counts deliveries the client dropped because it already held
   that sequence; ordering checks the log is strictly increasing.
+- **Connection-lost divider:** a dropped connection is not a stored event, so it has no sequence
+  number. The event log shows it as a divider between the last event received and the first
+  one after recovery. (`interrupted` is different: it is the server's terminal event and ends the run.)
+- **Recovery panel:** Disconnected is the cursor when the connection broke; Reconnect is the
+  cursor sent to resume; Replay and Mode describe the latest recovery only.
 - **Timestamps** are the time the event reached this client, not server time.
 
 Limit worth knowing: "events expected" is the highest sequence the client has seen, so it can

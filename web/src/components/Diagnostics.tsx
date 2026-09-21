@@ -1,53 +1,79 @@
-// Three small explanatory panels under the main columns:
-// what the stream delivered, how the last recovery went, and where the parts
-// of the system sit. The first two are derived from live state; the third is
-// static documentation of the server's real structure.
+// The "Under the hood" panels: the run, what the stream delivered, and how the
+// last recovery went. Every value is derived from live state; nothing here is
+// reported by the server beyond the run id and status it already sends.
 
 import { seqLabel, type StreamMetrics } from "../metrics";
 import type { RunView } from "../useRun";
 
-function Row({ label, value, tone }: { label: string; value: string; tone?: "good" | "bad" }) {
+function Row({
+  label,
+  value,
+  tone,
+  title,
+}: {
+  label: string;
+  value: string;
+  tone?: "good" | "bad";
+  title?: string;
+}) {
   return (
     <div className="kv-row">
       <span className="kv-label">{label}</span>
-      <span className={tone ? `kv-value mono ${tone}` : "kv-value mono"}>{value}</span>
+      <span className={tone ? `kv-value mono ${tone}` : "kv-value mono"} title={title}>
+        {value}
+      </span>
     </div>
   );
 }
 
+/** Run ids are long; show the start and keep the full id in the tooltip. */
+function shortId(id: string | null): string {
+  if (id === null) return "—";
+  return id.length > 14 ? `${id.slice(0, 12)}…` : id;
+}
+
+export function RunInfo({ view }: { view: RunView }) {
+  return (
+    <section className="card panel" aria-label="Run">
+      <header className="card-head">
+        <h2 className="card-title">Run</h2>
+      </header>
+      <Row label="Run ID" value={shortId(view.runId)} title={view.runId ?? undefined} />
+      <Row
+        label="Status"
+        value={view.status === "idle" ? "no run" : view.status}
+        tone={
+          view.status === "completed" ? "good" : view.status === "failed" || view.status === "interrupted" ? "bad" : undefined
+        }
+      />
+      <Row label="Cursor" value={seqLabel(view.cursor)} />
+    </section>
+  );
+}
+
 export function StreamIntegrity({ metrics }: { metrics: StreamMetrics }) {
-  const healthy = metrics.orderingValid && metrics.duplicates === 0;
   return (
     <section className="card panel" aria-label="Stream integrity">
       <header className="card-head">
-        <h2 className="card-title">
-          <span className={healthy ? "dot good" : "dot bad"} aria-hidden="true" /> Stream integrity
-        </h2>
+        <h2 className="card-title">Stream integrity</h2>
       </header>
-      <div className="kv-grid">
-        <div>
-          <Row label="Cursor" value={seqLabel(metrics.expected)} />
-          <Row label="Events received" value={seqLabel(metrics.received)} />
-          <Row label="Events expected" value={seqLabel(metrics.expected)} />
-        </div>
-        <div>
-          <Row
-            label="Missing"
-            value={String(metrics.missing.length)}
-            tone={metrics.missing.length === 0 ? undefined : "bad"}
-          />
-          <Row
-            label="Duplicates"
-            value={String(metrics.duplicates)}
-            tone={metrics.duplicates === 0 ? undefined : "bad"}
-          />
-          <Row
-            label="Ordering"
-            value={metrics.orderingValid ? "valid" : "broken"}
-            tone={metrics.orderingValid ? "good" : "bad"}
-          />
-        </div>
-      </div>
+      <Row label="Expected" value={seqLabel(metrics.expected)} />
+      <Row label="Received" value={seqLabel(metrics.received)} />
+      <Row
+        label="Missing"
+        value={String(metrics.missing.length)}
+        tone={metrics.missing.length === 0 ? undefined : "bad"}
+      />
+      <Row
+        label="Duplicates"
+        value={String(metrics.duplicates)}
+        tone={metrics.duplicates === 0 ? undefined : "bad"}
+      />
+      <Row
+        label="Ordering"
+        value={metrics.orderingValid ? "valid" : "broken"}
+        tone={metrics.orderingValid ? "good" : "bad"}
+      />
       <p className="panel-note">
         Duplicates counts deliveries this client suppressed because it already held that
         sequence &mdash; the client half of the deduplication contract.
@@ -56,82 +82,59 @@ export function StreamIntegrity({ metrics }: { metrics: StreamMetrics }) {
   );
 }
 
-/** Words for what the server is doing, taken from the run's real status. */
-const serverState: Record<RunView["status"], string> = {
-  idle: "idle",
-  running: "generating",
-  completed: "completed",
-  failed: "failed",
-  interrupted: "interrupted",
-};
+/** Events that arrived as catch-up after the most recent disconnect. */
+function lastRecovery(view: RunView) {
+  const since = view.lastDisconnectedAt ?? Infinity;
+  return view.log.filter((event) => event.source === "replayed" && event.seq > since);
+}
 
+/** First and last sequence replayed by the most recent recovery. */
+function replayRange(view: RunView): string {
+  const replayed = lastRecovery(view);
+  if (replayed.length === 0) return "—";
+  return `#${seqLabel(replayed[0].seq)} → #${seqLabel(replayed[replayed.length - 1].seq)}`;
+}
+
+/**
+ * How the most recent recovery went. "replay → live" means catch-up came first
+ * and live delivery followed; plain "live" means there was nothing to catch up.
+ */
 function recoveryMode(view: RunView): string {
-  if (view.connection === "reconnecting" || view.connection === "connecting") {
-    return "resuming…";
+  if (view.connection === "disconnected") return "offline";
+  if (view.connection === "reconnecting" || view.connection === "connecting") return "resuming…";
+  const replayed = lastRecovery(view);
+  if (replayed.length > 0) {
+    const lastReplayed = replayed[replayed.length - 1].seq;
+    const liveAfter = view.log.some((event) => event.source === "live" && event.seq > lastReplayed);
+    return liveAfter ? "replay → live" : "replay";
   }
-  if (view.connection !== "connected") return "—";
-  return view.cursor < view.replayBoundary ? "replay → live" : "live";
+  return view.log.length > 0 ? "live" : "—";
 }
 
 export function ConnectionRecovery({ view }: { view: RunView }) {
   return (
-    <section className="card panel" aria-label="Connection recovery">
+    <section className="card panel" aria-label="Recovery">
       <header className="card-head">
-        <h2 className="card-title">
-          <span className="dot neutral" aria-hidden="true" /> Connection recovery
-        </h2>
+        <h2 className="card-title">Recovery</h2>
       </header>
       <Row
-        label="Last disconnected"
+        label="Disconnected"
         value={view.lastDisconnectedAt === null ? "—" : `#${seqLabel(view.lastDisconnectedAt)}`}
       />
       <Row
-        label="Reconnect cursor"
-        value={view.reconnectCursor === null ? "—" : `#${seqLabel(view.reconnectCursor)}`}
+        label="Reconnect"
+        value={
+          // The first connection is not a reconnect, so it has no reconnect cursor.
+          view.lastDisconnectedAt === null || view.reconnectCursor === null
+            ? "—"
+            : `#${seqLabel(view.reconnectCursor)}`
+        }
       />
-      <Row label="Server state" value={serverState[view.status]} />
-      <Row label="Recovery mode" value={recoveryMode(view)} />
+      <Row label="Replay" value={replayRange(view)} />
+      <Row label="Mode" value={recoveryMode(view)} />
       <p className="panel-note">
-        Replay ends at the sequence the server held when this connection opened; everything
-        after it is live delivery.
-      </p>
-    </section>
-  );
-}
-
-const pipeline = [
-  { name: "Client", detail: "Web app" },
-  { name: "Stream API", detail: "HTTP / SSE" },
-  { name: "Run Manager", detail: "State & cursor" },
-  { name: "Event Store", detail: "Durable log" },
-  { name: "Generator", detail: "Produces events" },
-];
-
-export function Architecture() {
-  return (
-    <section className="card panel architecture" aria-label="Architecture">
-      <header className="card-head">
-        <h2 className="card-title">
-          <span className="dot neutral" aria-hidden="true" /> Architecture (high level)
-        </h2>
-      </header>
-      <ol className="pipeline">
-        {pipeline.map((stage, index) => (
-          <li key={stage.name}>
-            <div className="stage">
-              <p className="stage-name">{stage.name}</p>
-              <p className="stage-detail">{stage.detail}</p>
-            </div>
-            {index < pipeline.length - 1 && (
-              <span className="arrow" aria-hidden="true">
-                →
-              </span>
-            )}
-          </li>
-        ))}
-      </ol>
-      <p className="panel-note mono">
-        reconnect(cursor=N) → replay N+1… → live stream
+        Disconnected is the last sequence received before the connection broke. Reconnect is
+        the cursor sent when asking to resume. Replay and mode describe the latest recovery.
       </p>
     </section>
   );
