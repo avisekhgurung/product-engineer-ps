@@ -1,0 +1,17 @@
+# Go
+/server/chat.db
+/server/*.db
+/server/bin/
+
+# Web
+/web/node_modules/
+/web/dist/
+
+# Private notes, not part of the submission
+MY-NOTES*.md
+
+# macOS
+.DS_Store
+
+# Claude desktop preview config
+.claude/
