@@ -4,6 +4,7 @@
 // sentence a first-time viewer needs. It only reads state the app really has,
 // so the words can never claim more than the stream did.
 
+import { latestRecovery, seqLabel, streamMetrics } from "./metrics";
 import type { RunView } from "./useRun";
 
 export type Tone = "neutral" | "good" | "warn" | "bad";
@@ -14,54 +15,16 @@ export interface Narration {
   detail: string;
 }
 
-function chunkCount(view: RunView): number {
-  return view.log.filter((event) => event.type === "chunk").length;
-}
-
-/** Words that arrived as catch-up after a reconnect, not live. */
-export function recoveredCount(view: RunView): number {
-  return view.log.filter((event) => event.type === "chunk" && event.source === "replayed").length;
-}
-
-function plural(count: number, word: string): string {
-  return `${count} ${word}${count === 1 ? "" : "s"}`;
+/** Sequence of the last chunk received, i.e. where the text stopped. */
+function lastChunkSeq(view: RunView): number {
+  for (let i = view.log.length - 1; i >= 0; i--) {
+    if (view.log[i].type === "chunk") return view.log[i].seq;
+  }
+  return 0;
 }
 
 export function narrate(view: RunView): Narration {
-  const words = chunkCount(view);
-  const recovered = recoveredCount(view);
-
-  switch (view.status) {
-    case "completed":
-      return {
-        tone: "good",
-        title: "Done — nothing missing, nothing repeated",
-        detail:
-          recovered > 0
-            ? `You were offline for part of it. The ${plural(recovered, "word")} you missed came back in the right order.`
-            : `All ${plural(words, "word")} arrived in order.`,
-      };
-    case "failed":
-      return {
-        tone: "bad",
-        title: "The server stopped writing the answer",
-        detail: `It failed after ${plural(words, "word")}. Those words are safe, and this answer can never be marked as finished.`,
-      };
-    case "interrupted":
-      return {
-        tone: "bad",
-        title: "The server restarted while writing",
-        detail: `The ${plural(words, "word")} saved before the restart are kept. It did not carry on by itself.`,
-      };
-    case "idle":
-      return {
-        tone: "neutral",
-        title: "Ready",
-        detail: "Press Send. The answer will appear one word at a time.",
-      };
-    case "running":
-      break;
-  }
+  const metrics = streamMetrics(view.log, view.cursor, view.duplicatesSuppressed);
 
   if (view.runId === null && view.connection === "disconnected") {
     return {
@@ -71,40 +34,90 @@ export function narrate(view: RunView): Narration {
     };
   }
 
+  switch (view.status) {
+    case "completed":
+      // Never claim a clean finish the numbers do not support.
+      return metrics.orderingValid
+        ? {
+            tone: "good",
+            title: "Completed — nothing missing, nothing repeated",
+            detail: `${metrics.received} events received in the correct order.`,
+          }
+        : {
+            tone: "bad",
+            title: "Completed, but the stream is not intact",
+            detail: `${metrics.missing.length} missing events. Sequence is not valid.`,
+          };
+    case "failed":
+      return {
+        tone: "bad",
+        title: "Generator failed",
+        detail: `The stream stopped after event #${seqLabel(lastChunkSeq(view))}.`,
+      };
+    case "interrupted":
+      return {
+        tone: "bad",
+        title: "Server restarted",
+        detail: `The stream stopped after event #${seqLabel(lastChunkSeq(view))}. Stored events are intact; generation did not resume.`,
+      };
+    case "idle":
+      return {
+        tone: "neutral",
+        title: "Ready",
+        detail: "Press Send. The answer will arrive one event at a time.",
+      };
+    case "running":
+      break;
+  }
+
   switch (view.connection) {
     case "connecting":
       return { tone: "warn", title: "Connecting…", detail: "Starting the answer." };
     case "reconnecting":
       return {
         tone: "warn",
-        title: "Connection lost — trying again",
-        detail: `Attempt ${view.attempt}. The server is still writing, so nothing is lost.`,
+        title: "Reconnecting",
+        detail: `Resuming from event #${seqLabel(view.cursor)}…`,
       };
     case "disconnected":
-      return view.cutByUser
-        ? {
-            tone: "warn",
-            title: "Internet is off",
-            detail: `The server is still writing the answer without you. You have ${plural(words, "word")} so far. Press “Turn internet back on” to get the rest.`,
-          }
-        : {
-            tone: "bad",
-            title: "Couldn't reconnect",
-            detail: "Automatic retries stopped. Nothing is lost. Press “Turn internet back on” to try again.",
-          };
+      return {
+        tone: view.cutByUser ? "warn" : "bad",
+        title: "Connection interrupted",
+        detail: view.cutByUser
+          ? "The server is still generating. Reconnect to resume from the last acknowledged event."
+          : "Automatic retries stopped. The server is still generating. Reconnect to resume from the last acknowledged event.",
+      };
     default:
-      return recovered > 0
-        ? {
-            tone: "good",
-            title: "Back online — live again",
-            detail: `${plural(recovered, "missed word")} came back first (highlighted below), then new words kept arriving.`,
-          }
-        : {
-            tone: "warn",
-            title: "Answer is arriving live",
-            detail: "Words come from the server as it writes them. Try pressing “Cut the internet”.",
-          };
+      break;
   }
+
+  // Connected and running. If this connection is catching up after a drop, say
+  // so until it has reached the point the server held when it opened.
+  const replayed = latestRecovery(view.log, view.lastDisconnectedAt).length;
+  if (view.lastDisconnectedAt !== null && view.cursor < view.replayBoundary) {
+    return {
+      tone: "warn",
+      title: "Catching up",
+      detail: `Replaying missed events: #${seqLabel(view.cursor)} of #${seqLabel(view.replayBoundary)}.`,
+    };
+  }
+  if (replayed > 0) {
+    return {
+      tone: "good",
+      title: "Stream recovered",
+      detail: `${replayed} events replayed. Live delivery restored.`,
+    };
+  }
+  return {
+    tone: "warn",
+    title: "Answer is arriving live",
+    detail: "Events arrive as the server generates them. Try pressing “Drop connection”.",
+  };
+}
+
+/** Events that reached the client as catch-up, across every recovery. */
+export function recoveredCount(view: RunView): number {
+  return view.log.filter((event) => event.source === "replayed").length;
 }
 
 /**
@@ -116,7 +129,9 @@ export function narrate(view: RunView): Narration {
  */
 export function activeStep(view: RunView): 1 | 2 | 3 | 4 {
   if (view.status === "idle") return 1;
-  if (view.status !== "running") return recoveredCount(view) > 0 && view.status === "completed" ? 4 : 1;
+  if (view.status !== "running") {
+    return view.status === "completed" && recoveredCount(view) > 0 ? 4 : 1;
+  }
   if (view.connection === "disconnected" || view.connection === "reconnecting") return 3;
   return recoveredCount(view) > 0 ? 4 : 2;
 }

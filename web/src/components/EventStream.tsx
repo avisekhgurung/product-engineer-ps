@@ -60,9 +60,13 @@ export function EventStream({ log, disconnects }: { log: StreamEvent[]; disconne
                 key={item.event.seq}
                 className={item.event.type === "chunk" ? "row" : `row ${item.event.type}`}
               >
-                <span className="seq mono">{seqLabel(item.event.seq)}</span>
+                <span className="seq mono">#{seqLabel(item.event.seq)}</span>
                 <span className={`type-badge ${item.event.type}`}>{item.event.type}</span>
-                <span className="event-text">{item.event.text ?? item.event.reason}</span>
+                <span className="event-text">
+                  {item.event.type === "chunk"
+                    ? JSON.stringify(item.event.text ?? "")
+                    : item.event.reason}
+                </span>
                 <time className="event-time mono">{clockTime(item.event.receivedAt)}</time>
                 <SourceBadge event={item.event} />
               </li>

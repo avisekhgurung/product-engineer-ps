@@ -31,6 +31,13 @@ export function Composer({
 }: ComposerProps) {
   const streaming = view.status === "running";
   const canSend = draft.trim().length > 0 && !streaming;
+  // Drop only makes sense on a live connection. Reconnect only makes sense for
+  // an unfinished run whose connection is down or being re-established.
+  const canDrop = view.connection === "connected";
+  const canReconnect =
+    view.runId !== null &&
+    view.status === "running" &&
+    (view.connection === "disconnected" || view.connection === "reconnecting");
 
   return (
     <section className="card composer" aria-label="Your message">
@@ -52,15 +59,11 @@ export function Composer({
         <button type="button" className="primary" disabled={!canSend} onClick={onSend}>
           <span aria-hidden="true">➤</span> Send
         </button>
-        <button type="button" onClick={onDrop} disabled={view.connection !== "connected"}>
-          <span aria-hidden="true">⦸</span> Cut the internet
+        <button type="button" onClick={onDrop} disabled={!canDrop}>
+          <span aria-hidden="true">⦸</span> Drop connection
         </button>
-        <button
-          type="button"
-          onClick={onReconnect}
-          disabled={view.connection === "connected" || view.runId === null}
-        >
-          <span aria-hidden="true">⟳</span> Turn internet back on
+        <button type="button" onClick={onReconnect} disabled={!canReconnect}>
+          <span aria-hidden="true">⟳</span> Reconnect
         </button>
         <label className="toggle">
           <input
@@ -68,7 +71,7 @@ export function Composer({
             checked={failMidway}
             onChange={(event) => onFailMidwayChange(event.target.checked)}
           />
-          Simulate a server error halfway
+          Fail generator after 12 chunks
         </label>
       </div>
     </section>

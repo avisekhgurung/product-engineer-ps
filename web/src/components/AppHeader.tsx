@@ -19,8 +19,8 @@ export function AppHeader() {
       <div className="header-main">
         <h1>Resumable Conversation</h1>
         <p className="header-lede">
-          An answer arrives word by word. Cut the internet in the middle, turn it back on,
-          and it carries on from exactly where it stopped &mdash; nothing missing, nothing
+          An answer arrives word by word. Drop the connection in the middle, reconnect, and
+          it carries on from exactly where it stopped &mdash; nothing missing, nothing
           repeated.
         </p>
       </div>

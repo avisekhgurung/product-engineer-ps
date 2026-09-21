@@ -28,14 +28,14 @@ Useful flags: `go run ./cmd/server -db chat.db -addr :8080 -chunk-interval 120ms
 ### Successful scenario
 
 1. Press **Send**. The reply streams in word by word. A banner states in plain words what is happening, and a three-step guide shows where you are.
-2. Let it finish. The banner says "Done — nothing missing, nothing repeated", and the proof row shows the word count, 0 missing, and order correct. Open **Under the hood** for the numbered event log (each event's sequence number, type and LIVE/REPLAYED source) and the integrity checks.
+2. Let it finish. The banner says "Done — nothing missing, nothing repeated", and the proof row shows events received, missing events, duplicate events and sequence validity. Open **Under the hood** for the numbered event log (each event's sequence number, type and LIVE/REPLAYED source) and the integrity checks.
 
 ### Failure and recovery scenarios
 
 | Scenario | How to trigger it |
 | --- | --- |
-| **Reconnect mid-reply** | Press **Send**, then **Cut the internet**, wait a few seconds, then **Turn internet back on**. Generation continued while you were away; the words you missed come back first (highlighted in the reply), then live delivery resumes with no repeated or missing words. |
-| **Generator failure after partial output** | Tick **Simulate a server error halfway**, then **Send**. The run ends as `failed` after 12 chunks, keeps its history, and can never become `completed`. |
+| **Reconnect mid-reply** | Press **Send**, then **Drop connection**, wait a few seconds, then **Reconnect**. Generation continued while you were away; the events you missed are replayed first (highlighted in the reply and tagged REPLAYED in the log), then live delivery resumes with no repeated or missing events. |
+| **Generator failure after partial output** | Tick **Fail generator after 12 chunks**, then **Send**. The run ends as `failed` after 12 chunks, keeps its history, and can never become `completed`. |
 | **Service restart mid-reply** | Press **Send**, then stop the server with Ctrl+C and start it again. The banner says the connection was lost and shows retry attempts with bounded backoff; on startup the server reports `marked 1 in-flight run(s) as interrupted` and the client resumes to a terminal `interrupted` state rather than a stale "still running" screen. |
 | **Stale cursor** | `curl -i "localhost:8080/api/runs/<runId>/events?after=99999"` returns `409` with `{"error":"cursor_unavailable","lastSeq":N}`. The UI handles the same case by checking durable run state before resuming and replaying from 0 when its cursor is ahead of history. |
 

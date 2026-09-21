@@ -57,3 +57,12 @@ export function clockTime(epochMs: number | null): string {
     second: "2-digit",
   });
 }
+
+/**
+ * Events that arrived as catch-up after the most recent disconnect. Both the
+ * banner and the Recovery panel read this, so they cannot disagree.
+ */
+export function latestRecovery(log: StreamEvent[], lastDisconnectedAt: number | null): StreamEvent[] {
+  if (lastDisconnectedAt === null) return [];
+  return log.filter((event) => event.source === "replayed" && event.seq > lastDisconnectedAt);
+}

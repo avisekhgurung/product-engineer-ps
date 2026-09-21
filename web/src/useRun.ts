@@ -29,6 +29,8 @@ export interface StreamEvent extends RunEvent {
 }
 
 export interface RunView {
+  conversationId: string | null;
+  messageId: string | null;
   runId: string | null;
   prompt: string;
   promptAt: number | null;
@@ -56,6 +58,8 @@ export interface RunView {
 }
 
 const initialView: RunView = {
+  conversationId: null,
+  messageId: null,
   runId: null,
   prompt: "",
   promptAt: null,
@@ -257,8 +261,9 @@ export function useRun(conversationId: string) {
     openedFrom.current = from;
     setView((current) => ({
       ...current,
-      connection: attempt.current === 0 ? "connecting" : "reconnecting",
+      connection: attempt.current === 0 && from === 0 ? "connecting" : "reconnecting",
       attempt: attempt.current,
+      replayBoundary: from,
       reconnectCursor: from,
     }));
 
@@ -297,15 +302,16 @@ export function useRun(conversationId: string) {
             // The server's own view of the run. Carries no seq, so the cursor
             // is untouched. Its lastSeq marks where replay ends and live
             // delivery begins on this connection.
+            //
+            // Its status is deliberately NOT applied. A run that finished while
+            // we were offline reports "completed" here before a single missed
+            // event has been replayed, so trusting it would show "completed"
+            // with events still missing. Only an applied terminal event ends
+            // the run on screen.
             const frame = data as ControlFrame;
             if (type === "state") {
-              status.current = frame.status;
               replayBoundary.current = frame.lastSeq;
-              setView((current) => ({
-                ...current,
-                status: frame.status,
-                replayBoundary: frame.lastSeq,
-              }));
+              setView((current) => ({ ...current, replayBoundary: frame.lastSeq }));
             }
             return;
           }
@@ -389,11 +395,18 @@ export function useRun(conversationId: string) {
       try {
         const result = await sendMessage(conversationId, text, failAfter);
         runId.current = result.runId;
-        setView((current) => ({ ...current, runId: result.runId }));
-        openStream();
-      } catch (error) {
         setView((current) => ({
           ...current,
+          runId: result.runId,
+          conversationId: result.conversationId,
+          messageId: result.messageId,
+        }));
+        openStream();
+      } catch (error) {
+        status.current = "idle";
+        setView((current) => ({
+          ...current,
+          status: "idle",
           connection: "disconnected",
           notice: `Could not start the reply: ${(error as Error).message}`,
           noticeKind: "error",
@@ -423,7 +436,7 @@ export function useRun(conversationId: string) {
   const reconnect = useCallback(() => {
     pausedByUser.current = false;
     attempt.current = 0;
-    setView((current) => ({ ...current, cutByUser: false }));
+    setView((current) => ({ ...current, cutByUser: false, connection: "reconnecting" }));
     void resumeFromDurableState();
   }, [resumeFromDurableState]);
 

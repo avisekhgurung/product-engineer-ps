@@ -4,13 +4,22 @@
 import { clockTime } from "../metrics";
 import type { RunView } from "../useRun";
 
-const replyHeading: Record<RunView["status"], string> = {
-  idle: "Relay",
-  running: "Relay (writing…)",
-  completed: "Relay",
-  failed: "Relay (failed)",
-  interrupted: "Relay (interrupted)",
-};
+/** The assistant's label states the run's real condition. */
+function replyHeading(view: RunView): string {
+  switch (view.status) {
+    case "running":
+      // Offline is not streaming, so say so instead of claiming it is.
+      return view.connection === "disconnected" || view.connection === "reconnecting"
+        ? "Relay (paused)"
+        : "Relay (streaming…)";
+    case "failed":
+      return "Relay (failed)";
+    case "interrupted":
+      return "Relay (interrupted)";
+    default:
+      return "Relay";
+  }
+}
 
 export function Conversation({ view }: { view: RunView }) {
   if (!view.prompt) return null;
@@ -40,7 +49,7 @@ export function Conversation({ view }: { view: RunView }) {
         </span>
         <div className="turn-body">
           <header className="turn-head">
-            <span className={`turn-who assistant status-${view.status}`}>{replyHeading[view.status]}</span>
+            <span className={`turn-who assistant status-${view.status}`}>{replyHeading(view)}</span>
             <time className="turn-time mono">{clockTime(view.replyStartedAt)}</time>
           </header>
           <p className="bubble reply">
@@ -50,12 +59,12 @@ export function Conversation({ view }: { view: RunView }) {
               </span>
             ))}
             {streamingNow && <span className="caret" aria-hidden="true" />}
-            {words.length === 0 && <span className="muted">waiting for the first word…</span>}
+            {words.length === 0 && <span className="muted">waiting for the first event…</span>}
           </p>
           {recovered > 0 && (
             <p className="legend">
-              <span className="recovered">Highlighted</span> = words you missed while offline,
-              delivered when you came back.
+              <span className="recovered">Highlighted</span> = events you missed while
+              disconnected, replayed when you reconnected.
             </p>
           )}
         </div>

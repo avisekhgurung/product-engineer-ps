@@ -22,6 +22,8 @@ export interface Run {
 }
 
 export interface SendResult {
+  conversationId: string;
+  messageId: string;
   runId: string;
   status: RunStatus;
   lastSeq: number;

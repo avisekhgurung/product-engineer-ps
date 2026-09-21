@@ -8,8 +8,8 @@ import type { RunView } from "../useRun";
 
 const steps = [
   { title: "Press Send", body: "An answer starts arriving, word by word." },
-  { title: "Cut the internet", body: "While it is still writing. The server keeps going." },
-  { title: "Turn it back on", body: "You get the words you missed, then the rest." },
+  { title: "Drop connection", body: "While it is still writing. The server keeps generating." },
+  { title: "Reconnect", body: "You receive the events you missed, then the live stream continues." },
 ];
 
 export function StepGuide({ view }: { view: RunView }) {
@@ -62,23 +62,22 @@ export function NowBanner({ view }: { view: RunView }) {
 }
 
 /** The proof, in words a non-engineer can check. */
-export function ProofStrip({ view, metrics }: { view: RunView; metrics: StreamMetrics }) {
-  const chunks = view.log.filter((event) => event.type === "chunk").length;
+export function ProofStrip({ metrics }: { metrics: StreamMetrics }) {
   const missing = metrics.missing.length;
 
   const items = [
-    { label: "Words received", value: String(chunks), bad: false },
-    { label: "Missing", value: String(missing), bad: missing > 0 },
-    { label: "Repeats blocked", value: String(metrics.duplicates), bad: false },
+    { label: "Events received", value: String(metrics.received), bad: false },
+    { label: "Missing events", value: String(missing), bad: missing > 0 },
+    { label: "Duplicate events", value: String(metrics.duplicates), bad: false },
     {
-      label: "Order",
-      value: metrics.orderingValid ? "correct" : "broken",
+      label: "Sequence",
+      value: metrics.orderingValid ? "valid" : "invalid",
       bad: !metrics.orderingValid,
     },
   ];
 
   return (
-    <dl className="proof" aria-label="Proof nothing was lost">
+    <dl className="proof" aria-label="Stream integrity summary">
       {items.map((item) => (
         <div key={item.label} className={item.bad ? "proof-item bad" : "proof-item"}>
           <dt>{item.label}</dt>

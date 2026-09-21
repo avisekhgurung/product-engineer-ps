@@ -8,7 +8,7 @@ import "./App.css";
 import { AppHeader } from "./components/AppHeader";
 import { Composer } from "./components/Composer";
 import { Conversation } from "./components/Conversation";
-import { ConnectionRecovery, RunInfo, StreamIntegrity } from "./components/Diagnostics";
+import { Architecture, ConnectionRecovery, RunInfo, StreamIntegrity } from "./components/Diagnostics";
 import { EventStream } from "./components/EventStream";
 import { NowBanner, ProofStrip, StepGuide } from "./components/Guide";
 import { streamMetrics } from "./metrics";
@@ -56,13 +56,13 @@ export default function App() {
 
       <NowBanner view={view} />
       <Conversation view={view} />
-      {view.log.length > 0 && <ProofStrip view={view} metrics={metrics} />}
+      {view.log.length > 0 && <ProofStrip metrics={metrics} />}
 
       <details className="hood">
         <summary>
           <span className="hood-title">Under the hood</span>
           <span className="hood-hint">
-            Run details, integrity checks and the event log &mdash; for engineers
+            Run details, integrity, recovery, event log and architecture &mdash; for engineers
           </span>
         </summary>
 
@@ -77,6 +77,7 @@ export default function App() {
               <EventStream log={view.log} disconnects={view.disconnects} />
             </div>
           </div>
+          <Architecture />
         </div>
       </details>
 

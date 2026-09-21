@@ -289,7 +289,7 @@
 
 .row {
   display: grid;
-  grid-template-columns: 34px 74px minmax(0, 1fr) 64px 76px;
+  grid-template-columns: 44px 74px minmax(0, 1fr) 64px 76px;
   gap: 10px;
   align-items: center;
   padding: 5px 6px;
@@ -401,7 +401,7 @@
    column always keeps room to be read. */
 @container (max-width: 520px) {
   .row {
-    grid-template-columns: 30px 66px minmax(0, 1fr) 70px;
+    grid-template-columns: 40px 66px minmax(0, 1fr) 70px;
     gap: 8px;
   }
   .event-time {
@@ -411,7 +411,7 @@
 
 @container (max-width: 340px) {
   .row {
-    grid-template-columns: 26px 60px minmax(0, 1fr) 64px;
+    grid-template-columns: 36px 60px minmax(0, 1fr) 64px;
     gap: 6px;
   }
   .type-badge,
@@ -456,6 +456,48 @@
 }
 .kv-value.bad {
   color: var(--bad);
+}
+
+/* ---------- architecture ---------- */
+
+.architecture {
+  margin-top: 16px;
+}
+
+.pipeline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.pipeline li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stage {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-raised);
+  text-align: center;
+}
+
+.stage-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stage-detail {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.arrow {
+  color: var(--muted);
 }
 
 /* ---------- footer ---------- */
